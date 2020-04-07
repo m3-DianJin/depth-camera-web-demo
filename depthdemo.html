@@ -342,7 +342,9 @@
 
       if (this.frameAvailable) {
         // Upload the video frame to texture.
-        if (gl.color_buffer_float_ext) {
+        if (gl.texture_norm16_ext) {
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.texture_norm16_ext.R16_EXT, gl.RED, gl.UNSIGNED_SHORT, this.video);
+        } else if (gl.color_buffer_float_ext) {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, gl.RED, gl.FLOAT, this.video);
         } else {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, gl.RGBA, gl.FLOAT, this.video);
@@ -384,14 +386,19 @@
 
       if (!this.readBuffer) {
         this.readFormat = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_FORMAT);
-        if (this.readFormat == gl.RED && gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE) == gl.FLOAT) {
+        this.readType = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE);
+        if (this.readFormat == gl.RED && this.readType == gl.FLOAT) {
           this.readBuffer = new Float32Array(this.video.width * this.video.height);
+        } else if (this.readType == gl.UNSIGNED_SHORT) {
+          this.readFormat = gl.RGBA;
+          this.readBuffer = new Uint16Array(this.video.width * this.video.height * 4);
         } else {
           this.readFormat = gl.RGBA;
+          this.readType = gl.FLOAT;
           this.readBuffer = new Float32Array(this.video.width * this.video.height * 4);
         }
       }
-      gl.readPixels(0, 0, this.video.width, this.video.height, this.readFormat, gl.FLOAT, this.readBuffer);
+      gl.readPixels(0, 0, this.video.width, this.video.height, this.readFormat, this.readType, this.readBuffer);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 
@@ -399,8 +406,13 @@
       const img = this.ctx2d.getImageData(0, 0, this.video.width, this.video.height);
       const data = img.data;
       const stride = (this.readFormat === this.gl.RED) ? 1 : 4;
+      const factor = (this.readType === this.gl.FLOAT) ? 255.0 : 
+                     (this.readType === this.gl.UNSIGNED_SHORT) ? (255.0/65535.0) : 1.0;
       for (let i = 0, j = 0; i < data.length; i += 4, j += stride) {
-        data[i] = this.readBuffer[j] * 255;
+        const p = this.readBuffer[j] * factor;
+        data[i+0] = p;
+        data[i+1] = p;
+        data[i+2] = p;
         data[i+3] = 255;
       }
       this.ctx2d.putImageData(img, 0, 0);
@@ -414,6 +426,7 @@
       if (gl) {
         // The extension tells us if we can use single component R32F texture format.
         gl.color_buffer_float_ext = gl.getExtension('EXT_color_buffer_float');
+        gl.texture_norm16_ext = gl.getExtension('EXT_texture_norm16');
       } else {
         gl = canvas.getContext("webgl");
         gl.getExtension("OES_texture_float");
