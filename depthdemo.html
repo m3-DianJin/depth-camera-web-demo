@@ -384,13 +384,23 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, gl.framebuffer);
 
       if (!this.readBuffer) {
+
+        console.log("readBuffer NOT NULL");
+
         this.readFormat = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_FORMAT);
         if (this.readFormat == gl.RED && gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE) == gl.FLOAT) {
+          console.log("IN gl.RED");
           this.readBuffer = new Float32Array(this.video.width * this.video.height);
         } else {
+          console.log("IN gl.RGBA");
           this.readFormat = gl.RGBA;
           this.readBuffer = new Float32Array(this.video.width * this.video.height * 4);
         }
+      }
+      else{
+
+          console.log("readBuffer NULL");
+
       }
       gl.readPixels(0, 0, this.video.width, this.video.height, this.readFormat, gl.FLOAT, this.readBuffer);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
